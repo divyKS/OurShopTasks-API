@@ -1,16 +1,20 @@
+require('dotenv').config() // need to write it only once for the application, writing this loads the environment variables from a .env file into process.env so that they can be accessed throughout my application.
 const path = require('path');
 const express = require('express');
 const app = express();
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const corsOptions = require('./config/corsOptions');
+const mongoose = require('mongoose');
+const connectToDB = require('./config/dbConnection');
+
 const PORT = process.env.PORT || 3500;
 
-const { logger } = require('./middleware/logger');
+const { logger, logEvents } = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');
 
-
-// logger has to be the first middleware, otherwise the requests which get served by some other middlewares won't get logged
+connectToDB();
+// logger has to be the first middleware, otherwise the requests which get served by some other middlewares won't get logged. Every request that comes will go through this middleware first and get logged to the logFile
 app.use(logger);
 app.use(express.json());
 app.use(cookieParser());
@@ -36,7 +40,15 @@ app.all('*', (req, res) => {
 app.use(errorHandler);
 
 
-app.listen(PORT, () => {
-	console.log(`app listening on port ${PORT}`);
+// 'open' event is emitted after 'connected' event will can run multiple times, but we want it to be done just the first time
+mongoose.connection.once('open', () => {
+	console.log('Connection to DB successful (from server.js)')
+	app.listen(PORT, () => {
+		console.log(`app listening on port ${PORT}`);
+	});
 });
 
+mongoose.connection.on('error', (err) => {
+	console.log("(server.js)", err);
+	logEvents(`${err.no}: ${err.code}\t${err.syscall}\t${err.hostname}`, 'mongoErrorsLogFile.log')
+});
