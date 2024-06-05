@@ -13,6 +13,11 @@ const PORT = process.env.PORT || 3500;
 const { logger, logEvents } = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');
 
+const userRouter = require('./routes/userRoutes');
+const noteRouter = require('./routes/noteRoutes');
+const authRouter = require('./routes/authRoutes');
+const verifyJWT = require('./middleware/verifyJWT');
+
 connectToDB();
 // logger has to be the first middleware, otherwise the requests which get served by some other middlewares won't get logged. Every request that comes will go through this middleware first and get logged to the logFile
 app.use(logger);
@@ -24,6 +29,10 @@ app.use('/', express.static(path.join(__dirname, 'public')));
 
 // all routes starting with / will be routed to the root.js router
 app.use('/', require('./routes/root'));
+
+app.use('/auth', authRouter);
+app.use('/users', verifyJWT, userRouter);
+app.use('/notes', verifyJWT, noteRouter);
 
 app.all('*', (req, res) => {
 	res.status(400);
