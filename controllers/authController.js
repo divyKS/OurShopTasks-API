@@ -15,13 +15,13 @@ const login = expressAsyncHandler(async (req, res) => {
     const foundUser = await User.findOne({"username": username}).exec();
     
     if(!foundUser){
-        return res.status(401).json({ "message": "Unauthorized" });
+        return res.status(401).json({ "message": "Unauthorized, user does not exist" });
     }
 
     const passwordMatches = await bcrypt.compare(password, foundUser.password);
 
     if(!passwordMatches){
-        return res.status(401).json({ "message": "Unauthorized" });
+        return res.status(401).json({ "message": "Unauthorized, the username or password is incorrect" });
     }
 
     const accessToken = jwt.sign(
@@ -53,7 +53,7 @@ const login = expressAsyncHandler(async (req, res) => {
 
     // client does not get to set the refresh token, that is done by the server
     // but when it sends request to /refresh, then we make it available
-    res.json({ accessToken });
+    res.json({ "accessToken": accessToken });
 
 });
 
@@ -102,14 +102,17 @@ const refresh = expressAsyncHandler(async (req, res) => {
 
 const logout = expressAsyncHandler(async (req, res) => {
     const cookies = req.cookies;
+
+    console.log(cookies);
     
     if (!cookies || !cookies.jwt){
         return res.sendStatus(204); //No content but successful
     }
+        
+    // not writing the max age otherwise only contents are deleted
+    res.clearCookie('jwt', { httpOnly: true, secure: true, sameSite: 'None'});
 
-    res.clearCookie('jwt', { httpOnly: true, sameSite: 'None', secure: true });
-
-    res.json({ message: 'Cookie cleared' }); // default status is 200
+    res.status(200).json({ message: 'Cookie cleared' }); // default status is 200
 });
 
 module.exports = { login, refresh, logout };
