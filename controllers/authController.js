@@ -33,14 +33,14 @@ const login = expressAsyncHandler(async (req, res) => {
         },
         process.env.ACCESS_TOKEN_SECRET,
         // 30s
-        { expiresIn: "1m" }
+        { expiresIn: "5m" }
     );
 
     const refreshToken = jwt.sign(
         { "username": foundUser.username },
         process.env.REFRESH_TOKEN_SECRET,
         //  2min, 120s
-        { expiresIn: "2m" }
+        { expiresIn: "5m" }
     );
 
     // Sets a cookie with name (name) and value (value) to be sent along with the response
@@ -48,7 +48,7 @@ const login = expressAsyncHandler(async (req, res) => {
         httpOnly: true,
         secure: true,
         sameSite: 'None',
-        maxAge: 120 * 1000 // same as refresh token
+        maxAge: 300 * 1000 // same as refresh token
     });
 
     // client does not get to set the refresh token, that is done by the server
@@ -89,7 +89,7 @@ const refresh = expressAsyncHandler(async (req, res) => {
                     }
                 },
                 process.env.ACCESS_TOKEN_SECRET,
-                { expiresIn: "1m" }
+                { expiresIn: "5m" }
             );
 
             // still inside the jwt.verify
@@ -103,10 +103,11 @@ const refresh = expressAsyncHandler(async (req, res) => {
 const logout = expressAsyncHandler(async (req, res) => {
     const cookies = req.cookies;
 
-    console.log(cookies);
-    
     if (!cookies || !cookies.jwt){
-        return res.sendStatus(204); //No content but successful
+        // if i do sendStatus(204) then the json wont be there since it means no content, so the client wont expect a response body 
+        // with 204, i cant send anything back
+        // return res.status(204).json({message: 'Cookie was already removed'}); //No content but successful
+        return res.status(204).end();
     }
         
     // not writing the max age otherwise only contents are deleted

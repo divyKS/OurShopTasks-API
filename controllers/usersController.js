@@ -112,7 +112,13 @@ const deleteUser = expressAsyncHandler(async (req, res) => {
     const notes = await Note.find({ user: id }).lean().exec();
 
     if(notes.length){
-        return res.status(400).json({ message: "User has notes assigned. Delete the notes before deleting the user." });
+        const allTasksAreCompleted = notes.reduce((acc, note)=>{
+            acc = acc && note.completed
+            return acc;
+        }, true);
+        if(!allTasksAreCompleted){
+            return res.status(400).json({ message: "User has notes assigned. Delete the notes before deleting the user." });
+        }
     }
 
     await userToBeDeleted.deleteOne();
