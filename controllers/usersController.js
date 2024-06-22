@@ -37,7 +37,9 @@ const createNewUser = expressAsyncHandler(async (req, res) => {
 		return res.status(400).json({ message: 'All fields are needed!' });
 	}
 
-	const duplicateUser = await User.findOne({ username: username }).lean().exec();
+    // collation is way to configure how mongodb stores and compares string
+    // strength 1 => ignore case and ignore diacritics
+	const duplicateUser = await User.findOne({ username: username }).collation({locale: 'en', strength: 1}).lean().exec();
 
 	if (duplicateUser) {
 		return res.status(409).json({ message: 'This username is already taken.' });
@@ -71,7 +73,7 @@ const updateUser = expressAsyncHandler(async (req, res) => {
     }
 
     // can the newName be assigned?
-    const duplicateUser = await User.findOne({ username: newName}).lean().exec();
+    const duplicateUser = await User.findOne({ username: newName}).collation({locale: 'en', strength: 1}).lean().exec();
 
 
     if(duplicateUser && duplicateUser?._id.toString() !== id){
@@ -111,15 +113,20 @@ const deleteUser = expressAsyncHandler(async (req, res) => {
 
     const notes = await Note.find({ user: id }).lean().exec();
 
+    // if(notes.length){
+    //     const allTasksAreCompleted = notes.reduce((acc, note)=>{
+    //         acc = acc && note.completed
+    //         return acc;
+    //     }, true);
+    //     if(!allTasksAreCompleted){
+    //         return res.status(400).json({ message: "User has notes assigned. Delete the notes before deleting the user." });
+    //     }
+    // }
+    
     if(notes.length){
-        const allTasksAreCompleted = notes.reduce((acc, note)=>{
-            acc = acc && note.completed
-            return acc;
-        }, true);
-        if(!allTasksAreCompleted){
-            return res.status(400).json({ message: "User has notes assigned. Delete the notes before deleting the user." });
-        }
+        return res.status(400).json({ message: "User has notes assigned. Delete the notes before deleting the user." });
     }
+
 
     await userToBeDeleted.deleteOne();
 

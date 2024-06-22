@@ -1,6 +1,4 @@
 const User = require('../models/User');
-const Note = require('../models/Note');
-const mongoose = require('mongoose');
 const expressAsyncHandler = require('express-async-handler');
 const bcrypt = require('bcrypt');
 const jwt  = require('jsonwebtoken');
@@ -32,15 +30,13 @@ const login = expressAsyncHandler(async (req, res) => {
             }
         },
         process.env.ACCESS_TOKEN_SECRET,
-        // 30s
-        { expiresIn: "5m" }
+        { expiresIn: "10m" }
     );
 
     const refreshToken = jwt.sign(
         { "username": foundUser.username },
         process.env.REFRESH_TOKEN_SECRET,
-        //  2min, 120s
-        { expiresIn: "5m" }
+        { expiresIn: "1d" }
     );
 
     // Sets a cookie with name (name) and value (value) to be sent along with the response
@@ -48,12 +44,12 @@ const login = expressAsyncHandler(async (req, res) => {
         httpOnly: true,
         secure: true,
         sameSite: 'None',
-        maxAge: 300 * 1000 // same as refresh token
+        maxAge: 1*24*50*60*1000 // same as refresh token
     });
 
     // client does not get to set the refresh token, that is done by the server
     // but when it sends request to /refresh, then we make it available
-    res.json({ "accessToken": accessToken });
+    res.json({ "roles": foundUser.roles, "accessToken": accessToken });
 
 });
 
@@ -61,7 +57,7 @@ const refresh = expressAsyncHandler(async (req, res) => {
     const cookies = req.cookies;
 
     if(!cookies || !cookies.jwt){
-        return res.status(401).json({ message: 'Unauthorized, cookie not found' });
+        return res.status(401).json({ message: 'Unauthorized, cookie not found, can not refresh access token' });
     }
     
     // refreshToken that the server had created above and provided to the client via the response
@@ -72,14 +68,16 @@ const refresh = expressAsyncHandler(async (req, res) => {
         process.env.REFRESH_TOKEN_SECRET,
         expressAsyncHandler( async (error, decoded) => {
             if(error){
-                return res.status(403).json({ "messgae": "Forbidden, bad refreshToken provided" });
+                return res.status(403).json({ "message": "Forbidden, bad refreshToken provided" });
             }
             
             const foundUser = await User.findOne({ "username": decoded.username }).exec();
 
             if(!foundUser){
-                return res.status(401).json({ "message": "Unauthorized, something up with your refreshToken cookie" });
+                return res.status(401).json({ "message": "Unauthorized, something up with your refreshToken cookie, it might be tampered" });
             }
+
+            const roles = foundUser.roles;
 
             const accessToken = jwt.sign(
                 {
@@ -89,11 +87,12 @@ const refresh = expressAsyncHandler(async (req, res) => {
                     }
                 },
                 process.env.ACCESS_TOKEN_SECRET,
-                { expiresIn: "5m" }
+                { expiresIn: "10m" }
             );
 
             // still inside the jwt.verify
-            return res.json({ accessToken });
+            // also sending back the roles so that when client has lost its AT/has become undefined, everything else will, so we will need roles
+            return res.json({ roles, accessToken });
 
         })
     );

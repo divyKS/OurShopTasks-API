@@ -1,3 +1,4 @@
+// can use express async handler too and then t will be required here once just like dotenv
 require('dotenv').config() // need to write it only once for the application, writing this loads the environment variables from a .env file into process.env so that they can be accessed throughout my application.
 const path = require('path');
 const express = require('express');
